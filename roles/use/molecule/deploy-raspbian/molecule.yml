@@ -1,0 +1,23 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: delegated
+platforms:
+  - name: fabos-edge-pi-01
+    address: ${RASPI_ADDRESS}
+    user: ${RASPI_USER}
+    password: ${RASPI_PASSWORD}
+    groups: ['ssh']
+provisioner:
+  name: ansible
+  playbooks:
+    create: ../../../setup/molecule/default-raspbian/create.yml
+    prepare: ../../../setup/molecule/install-raspbian/converge.yml
+    destroy: ../../../setup/molecule/default-raspbian/destroy.yml
+  inventory:
+    group_vars:
+      ssh:
+        expose_docker_tcp_port: true
+verifier:
+  name: ansible

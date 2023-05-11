@@ -1,0 +1,59 @@
+---
+- name: Add tcp group to inventory
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  become: no
+  tasks:
+    - name: Stat docker-venv folder
+      ansible.builtin.stat:
+        path: /tmp/docker-venv
+      register: docker_venv_volder
+
+    - name: Create venv
+      when: not docker_venv_volder.stat.exists
+      ansible.builtin.command: python -m venv docker-venv
+      args:
+        chdir: /tmp
+
+    - name: Add Item to ansible Inventory
+      ansible.builtin.add_host:
+        name:                       "{{ item.value.ansible_host }}"
+        groups:                     "tcp"
+        ansible_connection:         "local"
+        ansible_user:               ""
+        ansible_password:           ""
+        ansible_ssh_user:           ""
+        ansible_ssh_pass:           ""
+        ansible_port:               "2375"
+        ansible_become_user:        ""
+        ansible_become_pass:        ""
+        ansible_become_method:      ""
+        ansible_winrm_transport:    ""
+        ansible_python_interpreter: "/tmp/docker-venv/bin/python"
+        ansible_ssh_common_args:    '-o StrictHostKeyChecking\=no'
+      loop: "{{ hostvars | dict2items }}"
+      changed_when: false
+
+- name: Converge
+  hosts: tcp
+  gather_facts: no
+  become: no
+  tasks:
+    - name: Include vars file
+      include_vars:
+        file: ./vars/main.yml
+
+    - name: "Include use - undeploy (service-1)"
+      include_role:
+        name: "use"
+        tasks_from: undeploy.yml
+      vars:
+        service_id: "{{ service_id_1 }}"
+
+    - name: "Include use - undeploy (service-2)"
+      include_role:
+        name: "use"
+        tasks_from: undeploy.yml
+      vars:
+        service_id: "{{ service_id_2 }}"

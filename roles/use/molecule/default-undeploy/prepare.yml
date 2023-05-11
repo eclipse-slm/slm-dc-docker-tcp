@@ -1,0 +1,110 @@
+---
+- name: Prepare Install (ssh)
+  hosts: ssh
+  gather_facts: yes
+  become: yes
+  tasks:
+    - name: "Include docker - install"
+      include_role:
+        name: "docker"
+        tasks_from: install.yml
+
+- name: Prepare Install (winrm)
+  hosts: WinRM
+  gather_facts: yes
+  become: yes
+  tasks:
+    - name: "Include docker - install"
+      ansible.builtin.include_role:
+        name: "docker"
+
+- name: Add tcp group to inventory
+  hosts: localhost
+  connection: local
+  gather_facts: no
+  become: no
+  tasks:
+    - name: Stat docker-venv folder
+      ansible.builtin.stat:
+        path: /tmp/docker-venv
+      register: docker_venv_volder
+
+    - name: Create venv
+      when: not docker_venv_volder.stat.exists
+      ansible.builtin.command: python -m venv docker-venv
+      args:
+        chdir: /tmp
+
+    - name: Add Item to ansible Inventory
+      ansible.builtin.add_host:
+        name:                       "{{ item.value.ansible_host }}"
+        groups:                     "{{ [ 'tcp' ] + item.value.group_names }}"
+        ansible_connection:         "local"
+        ansible_shell_type:         "sh"
+        ansible_user:               ""
+        ansible_password:           ""
+        ansible_ssh_user:           ""
+        ansible_ssh_pass:           ""
+        ansible_port:               "2375"
+        ansible_become_user:        ""
+        ansible_become_pass:        ""
+        ansible_become_method:      ""
+        ansible_winrm_transport:    ""
+        ansible_python_interpreter: "/tmp/docker-venv/bin/python"
+        ansible_ssh_common_args:    '-o StrictHostKeyChecking\=no'
+      loop: "{{ hostvars | dict2items }}"
+
+- name: Converge
+  hosts: tcp
+  gather_facts: yes
+  become: no
+  tasks:
+    - name: Include vars file
+      include_vars:
+        file: ./vars/main.yml
+
+    - name: Install docker client
+      ansible.builtin.include_role:
+        name: "setup"
+        tasks_from: install_client.yml
+      run_once: true
+
+    - name: "Include use - deploy (service-1) - Linux"
+      when: 
+        - "'win-ssh' not in group_names"
+        - "'winrm' not in group_names"
+      include_role:
+        name: "use"
+        tasks_from: deploy.yml
+      vars:
+        service_id: "{{ service_id_1 }}"
+        docker_compose_file: "{{ docker_compose_file_1 }}"
+
+    - name: "Include use - deploy (service-1) - Windows"
+      when: "'win-ssh' in group_names or 'winrm' in group_names"
+      include_role:
+        name: "use"
+        tasks_from: deploy.yml
+      vars:
+        service_id: "{{ service_id_1 }}"
+        docker_compose_file: "{{ docker_compose_file_1_win }}"
+
+    - name: "Include use - deploy (service-2) - Linux"
+      when:
+        - "'win-ssh' not in group_names"
+        - "'winrm' not in group_names"
+      include_role:
+        name: "use"
+        tasks_from: deploy.yml
+      vars:
+        service_id: "{{ service_id_2 }}"
+        docker_compose_file: "{{ docker_compose_file_2 }}"
+
+    - name: "Include use - deploy (service-2)- Windows"
+      when: "'win-ssh' in group_names or 'winrm' in group_names"
+      include_role:
+        name: "use"
+        tasks_from: deploy.yml
+      vars:
+        service_id: "{{ service_id_2 }}"
+        docker_compose_file: "{{ docker_compose_file_2_win }}"

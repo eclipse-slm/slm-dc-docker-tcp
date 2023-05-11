@@ -1,0 +1,22 @@
+---
+dependency:
+  name: galaxy
+driver:
+  name: delegated
+platforms:
+  - name: raspi
+    address: ${RASPI_ADDRESS}
+    user: ${RASPI_USER}
+    password: ${RASPI_PASSWORD}
+    groups: ['ssh']
+provisioner:
+  name: ansible
+  playbooks:
+    create: ../default-raspbian/create.yml
+    destroy: ../default-raspbian/destroy.yml
+  inventory:
+    group_vars:
+      ssh:
+        expose_docker_tcp_port: true
+verifier:
+  name: ansible
