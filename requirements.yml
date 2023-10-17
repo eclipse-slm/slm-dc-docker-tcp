@@ -7,5 +7,5 @@ roles:
 
   - src: "git+https://github.com/FabOS-AI/fabos-slm-inventory-helper.git"
     scm: git
-    version: main
+    version: 1.0.0
     name: inventory_helper
